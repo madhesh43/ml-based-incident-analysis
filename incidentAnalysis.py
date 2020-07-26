@@ -265,15 +265,10 @@ def process_df_for_nlp(input_dataframe, weights_from_st, selected_option, eps, m
     # Build encodings
     ticket_description = filtered_df['rev_desc'].to_list()
     ticket_encodings = get_encodings(weights_from_st, ticket_description)
+    ticket_grouping = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine').fit(ticket_encodings)
     # Grouping of tickets
-    # st.write(eps, min_samples)
-    if selected_option != 'Incident':
-        ticket_grouping = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine').fit(ticket_encodings)
-    else:
-        ticket_grouping = DBSCAN(eps=min_samples, min_samples=min_samples, metric='cosine').fit(ticket_encodings)
     # Get Group labels
     ticket_labels = ticket_grouping.labels_
-    # st.write(ticket_labels)
     # Add Group as a new column
     filtered_df['Group_B'] = pd.DataFrame(ticket_labels)
     filtered_df = filtered_df[output_cols2]
@@ -281,11 +276,9 @@ def process_df_for_nlp(input_dataframe, weights_from_st, selected_option, eps, m
 
 
 def create_summary_for_df(input_df) -> Tuple[pd.DataFrame]:
-    # pivot_cols2 = ['Group_B', 'Jan-2020', 'Feb-2020', 'Mar-2020', 'Apr-2020', 'May-2020', 'All']
     pivot_cols2 = ['Group_B', 'All']
     month_year_list = list(input_df.month_year.unique())
     pivot_cols2.extend(month_year_list)
-    # input_df = input_df[input_df['Group_B'] != -1]
     # create summary from the input data
     input_summary_df = pd.pivot_table(input_df, index=["Group_B"], columns=["month_year"], values=["Number"],
                                       aggfunc=[len], fill_value='0', margins=True)
@@ -336,23 +329,19 @@ def main():
 
             # This function will do step-1 preprocessing
             pre_process_one_df, pre_step1_done_f = pre_processing_step_one(input_df)
-            # st.text("Data from preprocessing step-1")
-            # st.write(pre_process_one_df)
             if not pre_step1_done_f:
                 st.error("Error in pre-processing step-1, pls check")
 
             # This function will do the step-2 preprocessing
             pre_process_two_df, pre_step2_done_f = pre_processing_step_two(pre_process_one_df)
-            # st.text("Data from preprocessing step-2")
-            # st.write(pre_process_two_df)
             if not pre_step2_done_f:
                 st.error("Error in pre-processing step-2, pls check")
 
             # get the options to be displayed in dropdown
             list_of_dd_options = get_options_for_dd(pre_process_two_df)
             # Load the model weights
-            # my_weights = get_weights()
-            weights_from_st = copy.deepcopy(get_weights())
+            my_weights = get_weights()
+            weights_from_st = copy.deepcopy(my_weights)
 
             # display the option to user to select from dropdown
             st.write('-' * 15)
@@ -360,7 +349,7 @@ def main():
             st.write('-' * 15)
 
             # process based on user selection
-            if option_selected == 'Problem Task':
+            if option_selected != 'Incident':
                 eps = eps_task
                 min_samples = min_samples_task
                 nlp_processed_df = process_df_for_nlp(pre_process_two_df, weights_from_st, option_selected, eps,
@@ -390,28 +379,6 @@ def main():
                                                       min_samples)
                 st.write('Processed and Categorized data for selected Category')
 
-                if nlp_processed_df.shape[0] > 0:
-                    st.write(nlp_processed_df)
-                    st.markdown(get_table_download_link(nlp_processed_df), unsafe_allow_html=True)
-                    st.write('-' * 15)
-                    nlp_processed_df= nlp_processed_df[nlp_processed_df['Group_B'] != -1]
-                    if nlp_processed_df.shape[0] >0:
-                        nlp_data_summary_df = create_summary_for_df(nlp_processed_df)
-                        if nlp_data_summary_df.shape[0] > 0:
-                            st.write('Data Summary for selected Category')
-                            st.write(nlp_data_summary_df)
-                            st.markdown(get_table_download_link(nlp_data_summary_df), unsafe_allow_html=True)
-                            st.write('-' * 15)
-                        else:
-                            st.warning("No Data available to Display")
-                else:
-                    st.write("No Data available to Display")
-            elif option_selected == 'Catalog Task':
-                eps = eps_task
-                min_samples = min_samples_task
-                nlp_processed_df = process_df_for_nlp(pre_process_two_df, weights_from_st, option_selected, eps,
-                                                      min_samples)
-                st.write('Processed and Categorized data for selected Category')
                 if nlp_processed_df.shape[0] > 0:
                     st.write(nlp_processed_df)
                     st.markdown(get_table_download_link(nlp_processed_df), unsafe_allow_html=True)
